@@ -1,0 +1,108 @@
+﻿@page "/"
+@inject HttpClient httpClient
+@inject IJSRuntime JS
+@inject IWebHostEnvironment WebHostEnvironment
+
+<PageTitle>Home</PageTitle>
+<div class="container">
+    <span style="display: block;font-size: 36px;text-align: center;">
+        Utility Bill Calculator <span style="color:#a067ff">beta</span>
+    </span>
+    <p style="
+    text-align: center;
+">Upload your bills and active tenant living periods and receive a sorted list of who owes what!</p>
+    <br>
+</div>
+<div class="container-lg">
+    <!-- Content here -->
+    <form @onsubmit="OnSubmit">
+        <div class="mb-3">
+            <label for="formFile" class="form-label">Input File:</label>
+                <InputFile class="form-control" type="file" id="formFile" @ref="fileInput" OnChange="HandleFileChange" />
+        </div>
+        <p><b style="color: #ff2929">Supported File Formats:</b> CSV</p>
+        <button type="submit" class="btn btn-primary">Submit</button>
+        <button type="button" @onclick="DownloadInputTemplate" class="btn btn-outline-primary">Download Input Template</button>
+    </form>
+</div>
+
+<script>
+    window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+        const arrayBuffer = await contentStreamReference.arrayBuffer();
+        const blob = new Blob([arrayBuffer]);
+        const url = URL.createObjectURL(blob);
+        const anchorElement = document.createElement('a');
+        anchorElement.href = url;
+        anchorElement.download = fileName ?? '';
+        anchorElement.click();
+        anchorElement.remove();
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+@code {
+    private InputFile fileInput;
+    private IBrowserFile file;
+
+    private async Task HandleFileChange(InputFileChangeEventArgs e)
+    {
+        file = e.File;
+        using (var stream = file.OpenReadStream())
+        using (var reader = new StreamReader(stream)){
+            var text = await reader.ReadToEndAsync();
+
+        }
+    }
+
+    private async Task OnSubmit()
+    {
+        try{
+            var content = await GetFileContent();
+            var response = await httpClient.PostAsync("https://awen-funcapp.azurewebsites.net/api/BillFunction", new StringContent(content));
+            var data = await response.Content.ReadAsStringAsync() ?? "";
+
+            if (!response.IsSuccessStatusCode)
+            {
+                await JS.InvokeVoidAsync("alert", data);
+                return;
+            }
+
+            await DownloadFileFromStream(data, "output", "csv");
+        }
+        catch(Exception e)
+        {
+            await JS.InvokeVoidAsync("alert", e.ToString());
+        }
+    }
+    private async Task DownloadInputTemplate()
+    {
+        string wwwrootPath = Path.Combine(WebHostEnvironment.WebRootPath, "");
+        string fileName = "input-template.csv";
+        string filePath = Path.Combine(wwwrootPath, fileName);
+        using (StreamReader reader = new StreamReader(filePath))
+        {
+            var fileContent = await reader.ReadToEndAsync();
+            await DownloadFileFromStream(fileContent, "input", "csv");
+        }
+    }
+
+    private async Task<string> GetFileContent()
+    {
+        using (var stream = file.OpenReadStream())
+        using (var reader = new StreamReader(stream))
+        {
+            return await reader.ReadToEndAsync();
+        }
+    }
+
+    private async Task DownloadFileFromStream(string data, string fileName, string fileType)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(data);
+        var stream = new MemoryStream(bytes);
+        var fileNameFinal = $"{fileName}.{fileType}";
+
+        using var streamRef = new DotNetStreamReference(stream: stream);
+
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileNameFinal, streamRef);
+    }
+}

@@ -1,0 +1,6 @@
+﻿Utility,UtilStartDate,UtilEndDate,Amount,,,Tenant,TenantStartDate,TenantEndDate
+Gas,8/30/2023,9/29/2023,23.44,,,Test1,7/1/2023,
+Electric,8/27/2023,9/26/2023,147.3,,,Test2,7/1/2023,8/27/2023
+Trash,9/1/2023,9/30/2023,24,,,Test3,9/27/2023,
+,,,,,,Test4,8/26/2023,
+,,,,,,Test5,9/4/2023,10/15/2023
